@@ -64,6 +64,10 @@ def require_auth(headers):
     return payload is not None
 
 class handler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Suppress default logging
+        pass
+    
     def do_POST(self):
         init_db()
         content_length = int(self.headers.get("Content-Length", 0))

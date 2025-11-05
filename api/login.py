@@ -16,6 +16,10 @@ except ImportError:
         return secrets.token_hex(16)
 
 class handler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Suppress default logging
+        pass
+    
     def do_POST(self):
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)

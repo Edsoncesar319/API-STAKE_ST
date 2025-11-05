@@ -2,6 +2,10 @@ from http.server import BaseHTTPRequestHandler
 import json
 
 class handler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Suppress default logging
+        pass
+    
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "application/json")
