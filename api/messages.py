@@ -6,8 +6,26 @@ from datetime import datetime
 import secrets
 from urllib.parse import urlparse, parse_qs
 
-# Database will be stored in /tmp for Vercel serverless functions
-DB_PATH = os.path.join('/tmp', 'database.sqlite3')
+# Database path configuration
+# Try to use root database.sqlite3, but in Vercel serverless we need /tmp
+_root_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'database.sqlite3')
+_tmp_db = os.path.join('/tmp', 'database.sqlite3')
+
+# Check if we can write to root (local development)
+if os.path.exists(_root_db) and os.access(os.path.dirname(_root_db), os.W_OK):
+    DB_PATH = _root_db
+elif os.path.exists(_root_db):
+    # Copy root DB to /tmp if it exists but we can't write to root (Vercel)
+    try:
+        import shutil
+        if not os.path.exists(_tmp_db):
+            shutil.copy2(_root_db, _tmp_db)
+        DB_PATH = _tmp_db
+    except:
+        DB_PATH = _tmp_db
+else:
+    # Use /tmp for serverless functions (Vercel)
+    DB_PATH = _tmp_db
 
 import sys
 import os.path
