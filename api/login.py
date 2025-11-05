@@ -1,47 +1,71 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import secrets
+from http.server import BaseHTTPRequestHandler
+import json
 import os
 import sys
+import os.path
 
-# Suppress Flask development server warning
-import logging
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
+# Add api directory to path for imports
+sys.path.insert(0, os.path.dirname(__file__))
 
-app = Flask(__name__)
-app.config['ENV'] = 'production'
-allowed_origins = (os.getenv('ALLOWED_ORIGINS') or '*').split(',')
-CORS(app, origins=allowed_origins if allowed_origins != ['*'] else None)
+try:
+    from _jwt_helper import generate_token
+except ImportError:
+    # Fallback - create simple token generator
+    import secrets
+    def generate_token(user_email='admin'):
+        return secrets.token_hex(16)
 
-# Global token store (in production, consider using Redis or database)
-token_store = set()
-
-@app.route('/', methods=['POST'])
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.get_json(force=True, silent=True) or {}
-    email = (data.get('email') or '').strip()
-    password = (data.get('password') or '').strip()
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length)
+        
+        try:
+            data = json.loads(body.decode('utf-8'))
+        except:
+            data = {}
+        
+        # Determine endpoint by path
+        if self.path == '/api/login' or self.path == '/login':
+            self.handle_login(data)
+        elif self.path == '/api/logout' or self.path == '/logout':
+            self.handle_logout()
+        else:
+            self.send_error(404)
     
-    admin_email = 'Superadm@starkeST.com'
-    admin_password = os.getenv('STARKE_ADMIN_PASSWORD', 'Starke@2025')
+    def handle_login(self, data):
+        email = (data.get('email') or '').strip()
+        password = (data.get('password') or '').strip()
+        
+        admin_email = 'Superadm@starkeST.com'
+        admin_password = os.getenv('STARKE_ADMIN_PASSWORD', 'Starke@2025')
+        
+        if email.lower() == admin_email.lower() and password == admin_password:
+            token = generate_token(email.lower())
+            response = {"token": token}
+            self.send_response(200)
+        else:
+            response = {"error": "Credenciais inválidas"}
+            self.send_response(401)
+        
+        self.send_header("Content-type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
     
-    if email.lower() == admin_email.lower() and password == admin_password:
-        token = secrets.token_hex(16)
-        token_store.add(token)
-        return jsonify({ 'token': token })
-    return jsonify({ 'error': 'Credenciais inválidas' }), 401
-
-@app.route('/logout', methods=['POST'])
-def logout():
-    auth_header = request.headers.get('Authorization', '')
-    if auth_header.startswith('Bearer '):
-        token = auth_header.split(' ', 1)[1].strip()
-        token_store.discard(token)
-    return jsonify({ 'success': True })
-
-# For Vercel serverless functions
-from _vercel_helper import make_handler
-
-handler = make_handler(app)
+    def handle_logout(self):
+        # With JWT, logout is client-side (just remove token)
+        # Token will expire naturally
+        response = {"success": True}
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
+    
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.end_headers()

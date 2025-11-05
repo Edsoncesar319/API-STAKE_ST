@@ -6,7 +6,7 @@ import requests
 import json
 
 # URL base da API
-BASE_URL = "https://api-stake-qfwnapf20-edson-cesars-projects.vercel.app"
+BASE_URL = "https://api-stake-fz49rvgj4-edson-cesars-projects.vercel.app"
 
 def test_health():
     """Testa o endpoint de health check"""

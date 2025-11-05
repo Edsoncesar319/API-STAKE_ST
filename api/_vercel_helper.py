@@ -174,22 +174,51 @@ def make_handler(wsgi_app):
                 else:
                     response_body.append(str(chunk).encode('utf-8'))
             
-            # Set response - try different ways to set res
-            if hasattr(res, 'status_code'):
-                res.status_code = status_code
-            elif hasattr(res, 'status'):
-                res.status = status_code
+            # Set response - Vercel expects us to write to res
+            # Try different ways to set status and headers
+            try:
+                if hasattr(res, 'status'):
+                    res.status(status_code)
+                elif hasattr(res, 'statusCode'):
+                    res.statusCode = status_code
+                elif hasattr(res, 'status_code'):
+                    res.status_code = status_code
+            except:
+                pass
             
             # Set headers
-            if hasattr(res, 'headers'):
-                for header, value in response_headers:
-                    res.headers[header] = value
-            elif hasattr(res, 'setHeader'):
-                for header, value in response_headers:
-                    res.setHeader(header, value)
+            try:
+                if hasattr(res, 'headers'):
+                    headers_dict = res.headers if isinstance(res.headers, dict) else {}
+                    for header, value in response_headers:
+                        headers_dict[header] = value
+                    res.headers = headers_dict
+                elif hasattr(res, 'setHeader'):
+                    for header, value in response_headers:
+                        res.setHeader(header, value)
+            except:
+                pass
             
-            # Return body
+            # Write body to response
             body_str = b''.join(response_body).decode('utf-8')
+            
+            # Try to write to res
+            try:
+                if hasattr(res, 'send'):
+                    res.send(body_str)
+                    return
+                elif hasattr(res, 'end'):
+                    res.end(body_str)
+                    return
+                elif hasattr(res, 'write'):
+                    res.write(body_str)
+                    if hasattr(res, 'end'):
+                        res.end()
+                    return
+            except:
+                pass
+            
+            # Fallback: return body (Vercel should handle this)
             return body_str
             
         except Exception as e:
