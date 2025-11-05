@@ -246,12 +246,17 @@ Configure as seguintes variáveis de ambiente no dashboard do Vercel:
 
 ## 🗄️ Banco de Dados
 
-O projeto utiliza SQLite armazenado em `/tmp` para funções serverless. As tabelas são criadas automaticamente na primeira execução:
+O projeto utiliza SQLite com a seguinte configuração:
+
+- **Desenvolvimento local**: Usa `database.sqlite3` na raiz do projeto
+- **Produção (Vercel)**: Usa `/tmp/database.sqlite3` (único local gravável em serverless)
+
+As tabelas são criadas automaticamente na primeira execução:
 
 - **messages**: Armazena mensagens de contato
 - **budgets**: Armazena solicitações de orçamento
 
-**Importante:** Em funções serverless, o diretório `/tmp` é persistente apenas durante a execução da função. Para produção em escala, considere usar um banco de dados externo (PostgreSQL, MySQL, etc.).
+**Nota sobre serverless:** Em funções serverless do Vercel, o diretório `/tmp` não é compartilhado entre diferentes funções. Cada função serverless (`messages.py`, `budgets.py`) tem seu próprio ambiente isolado. Para produção em escala com múltiplas funções, considere usar um banco de dados externo (PostgreSQL, MySQL, etc.).
 
 ## 🔒 Segurança
 
