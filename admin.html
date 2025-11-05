@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Starke ST</title>
+    <style>
+        :root { --s: 12px; --border: 1px solid #e5e7eb; --accent: #2563EB; }
+        body { font-family: Arial, sans-serif; margin: 0; background: #f7f7f7; color: #111; }
+        header { background: #111; color: #fff; padding: 12px 16px; }
+        main { padding: 16px; display: grid; gap: 24px; }
+        .card { background: #fff; border: var(--border); border-radius: 10px; padding: 16px; }
+        h2 { margin: 0 0 12px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: var(--border); text-align: left; padding: 8px; vertical-align: top; }
+        .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+        input, select, button { padding: 8px; border: var(--border); border-radius: 6px; }
+        button.primary { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; }
+        .muted { color: #6b7280; }
+        .nowrap { white-space: nowrap; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; }
+        .flex { display: flex; gap: 8px; align-items: center; }
+    </style>
+    <script>
+        const API_BASE = (window.__API_BASE_URL__ || (document.querySelector('meta[name="api-base-url"]')?.getAttribute('content')) || '/api');
+        let AUTH_TOKEN = '';
+        async function fetchPaged(endpoint, page, pageSize) {
+            const res = await fetch(`${API_BASE}${endpoint}?page=${page}&page_size=${pageSize}`, {
+                headers: AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : {}
+            });
+            if (!res.ok) throw new Error('Erro ao carregar');
+            return res.json();
+        }
+
+        function renderTable(containerId, items, columns) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const trh = document.createElement('tr');
+            columns.forEach(c => {
+                const th = document.createElement('th');
+                th.textContent = c.label;
+                trh.appendChild(th);
+            });
+            thead.appendChild(trh);
+            table.appendChild(thead);
+            const tbody = document.createElement('tbody');
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                columns.forEach(c => {
+                    const td = document.createElement('td');
+                    const value = c.format ? c.format(item[c.key], item) : item[c.key];
+                    td.innerHTML = value ?? '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            container.appendChild(table);
+        }
+
+        async function loadMessages() {
+            const page = parseInt(document.getElementById('msgPage').value || '1');
+            const pageSize = parseInt(document.getElementById('msgPageSize').value || '10');
+            const data = await fetchPaged('/api/messages', page, pageSize);
+            renderTable('messagesTable', data.items, [
+                { key: 'id', label: 'ID' },
+                { key: 'name', label: 'Nome' },
+                { key: 'email', label: 'Email' },
+                { key: 'subject', label: 'Assunto' },
+                { key: 'message', label: 'Mensagem', format: v => `<div class="mono">${(v||'').replace(/\n/g,'<br>')}</div>` },
+                { key: 'created_at', label: 'Criado em', format: v => `<span class="muted nowrap">${v}</span>` },
+            ]);
+            document.getElementById('msgTotal').textContent = data.total;
+        }
+
+        async function loadBudgets() {
+            const page = parseInt(document.getElementById('bdgPage').value || '1');
+            const pageSize = parseInt(document.getElementById('bdgPageSize').value || '10');
+            const data = await fetchPaged('/api/budgets', page, pageSize);
+            renderTable('budgetsTable', data.items, [
+                { key: 'id', label: 'ID' },
+                { key: 'name', label: 'Nome' },
+                { key: 'email', label: 'Email' },
+                { key: 'phone', label: 'Telefone' },
+                { key: 'service', label: 'Serviço' },
+                { key: 'details', label: 'Detalhes', format: v => `<div class="mono">${(v||'').replace(/\n/g,'<br>')}</div>` },
+                { key: 'company', label: 'Empresa' },
+                { key: 'city', label: 'Cidade/UF' },
+                { key: 'created_at', label: 'Criado em', format: v => `<span class="muted nowrap">${v}</span>` },
+            ]);
+            document.getElementById('bdgTotal').textContent = data.total;
+        }
+
+        async function doLogin(email, password) {
+            const res = await fetch(`${API_BASE}/api/login`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            if (!res.ok) throw new Error('Login inválido');
+            const data = await res.json();
+            AUTH_TOKEN = data.token;
+            localStorage.setItem('starke_admin_token', AUTH_TOKEN);
+        }
+
+        function bindControls() {
+            document.getElementById('msgReload').addEventListener('click', loadMessages);
+            document.getElementById('bdgReload').addEventListener('click', loadBudgets);
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('loginEmail').value.trim();
+                const password = document.getElementById('loginPassword').value.trim();
+                const err = document.getElementById('loginError');
+                err.textContent = '';
+                try {
+                    await doLogin(email, password);
+                    document.getElementById('loginView').style.display = 'none';
+                    document.getElementById('appView').style.display = 'block';
+                    loadMessages();
+                    loadBudgets();
+                } catch (e) {
+                    err.textContent = 'Credenciais inválidas';
+                }
+            });
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                try {
+                    await fetch(`${API_BASE}/api/logout`, { method: 'POST', headers: AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : {} });
+                } catch (e) {}
+                AUTH_TOKEN = '';
+                localStorage.removeItem('starke_admin_token');
+                document.getElementById('appView').style.display = 'none';
+                document.getElementById('loginView').style.display = 'block';
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            AUTH_TOKEN = localStorage.getItem('starke_admin_token') || '';
+            bindControls();
+            if (AUTH_TOKEN) {
+                document.getElementById('loginView').style.display = 'none';
+                document.getElementById('appView').style.display = 'block';
+                loadMessages();
+                loadBudgets();
+            } else {
+                document.getElementById('loginView').style.display = 'block';
+                document.getElementById('appView').style.display = 'none';
+            }
+        });
+    </script>
+    </head>
+<body>
+    <header>
+        <h1>Admin - Starke ST</h1>
+    </header>
+    <main>
+        <section id="loginView" class="card" style="display:none; max-width:480px; margin:24px auto;">
+            <h2>Login do Admin</h2>
+            <form id="loginForm" class="flex" style="flex-direction: column; align-items: stretch;">
+                <input id="loginEmail" type="email" placeholder="Email" value="Superadm@starkeST.com" required>
+                <input id="loginPassword" type="password" placeholder="Senha" required>
+                <div id="loginError" class="muted" style="color:#dc2626"></div>
+                <button type="submit" class="primary">Entrar</button>
+            </form>
+        </section>
+
+        <section id="appView" style="display:none;">
+        <section class="card">
+            <div class="flex" style="justify-content: space-between;">
+                <h2>Mensagens</h2>
+                <div class="controls">
+                    <button id="logoutBtn" class="">Sair</button>
+                    <span>Total: <strong id="msgTotal">0</strong></span>
+                    <label>Page <input id="msgPage" type="number" min="1" value="1" style="width:80px"></label>
+                    <label>Size <input id="msgPageSize" type="number" min="1" max="100" value="10" style="width:80px"></label>
+                    <button id="msgReload" class="primary">Recarregar</button>
+                </div>
+            </div>
+            <div id="messagesTable"></div>
+        </section>
+
+        <section class="card">
+            <div class="flex" style="justify-content: space-between;">
+                <h2>Orçamentos</h2>
+                <div class="controls">
+                    <span>Total: <strong id="bdgTotal">0</strong></span>
+                    <label>Page <input id="bdgPage" type="number" min="1" value="1" style="width:80px"></label>
+                    <label>Size <input id="bdgPageSize" type="number" min="1" max="100" value="10" style="width:80px"></label>
+                    <button id="bdgReload" class="primary">Recarregar</button>
+                </div>
+            </div>
+            <div id="budgetsTable"></div>
+        </section>
+        </section>
+    </main>
+</body>
+</html>
+
+
