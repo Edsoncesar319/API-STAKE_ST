@@ -17,7 +17,8 @@ CORS(app, origins=allowed_origins if allowed_origins != ['*'] else None)
 # Global token store (in production, consider using Redis or database)
 token_store = set()
 
-@app.route('/api/login', methods=['POST'])
+@app.route('/', methods=['POST'])
+@app.route('/login', methods=['POST'])
 def login():
     data = request.get_json(force=True, silent=True) or {}
     email = (data.get('email') or '').strip()
@@ -32,7 +33,7 @@ def login():
         return jsonify({ 'token': token })
     return jsonify({ 'error': 'Credenciais inválidas' }), 401
 
-@app.route('/api/logout', methods=['POST'])
+@app.route('/logout', methods=['POST'])
 def logout():
     auth_header = request.headers.get('Authorization', '')
     if auth_header.startswith('Bearer '):
@@ -40,6 +41,6 @@ def logout():
         token_store.discard(token)
     return jsonify({ 'success': True })
 
-# For Vercel serverless functions
+# For Vercel serverless functions  
 def handler(req):
     return app(req.environ, lambda status, headers: None)
