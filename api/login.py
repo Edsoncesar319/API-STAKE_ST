@@ -41,6 +41,7 @@ def logout():
         token_store.discard(token)
     return jsonify({ 'success': True })
 
-# For Vercel serverless functions  
-def handler(req):
-    return app(req.environ, lambda status, headers: None)
+# For Vercel serverless functions
+from _vercel_helper import make_handler
+
+handler = make_handler(app)

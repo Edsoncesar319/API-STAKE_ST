@@ -113,5 +113,6 @@ def list_messages():
     return jsonify({ 'items': items, 'total': total, 'page': page, 'page_size': page_size })
 
 # For Vercel serverless functions
-def handler(req):
-    return app(req.environ, lambda status, headers: None)
+from _vercel_helper import make_handler
+
+handler = make_handler(app)
