@@ -4,8 +4,14 @@ import sqlite3
 import os
 from datetime import datetime
 import secrets
+import logging
+
+# Suppress Flask development server warning
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
+app.config['ENV'] = 'production'
 allowed_origins = (os.getenv('ALLOWED_ORIGINS') or '*').split(',')
 CORS(app, origins=allowed_origins if allowed_origins != ['*'] else None)
 
@@ -155,5 +161,5 @@ def list_budgets():
     return jsonify({ 'items': items, 'total': total, 'page': page, 'page_size': page_size })
 
 # For Vercel serverless functions
-def handler(request):
-    return app(request.environ, lambda *args: None)
+def handler(req):
+    return app(req.environ, lambda status, headers: None)
