@@ -1,5 +1,5 @@
 # Ignore local database and misc
-/database.sqlite3
+# Note: database.sqlite3 is now included in deploy to be used by serverless functions
 *.pyc
 __pycache__/
 .env
