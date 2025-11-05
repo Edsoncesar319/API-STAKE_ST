@@ -1,0 +1,7 @@
+# Ignore local database and misc
+/database.sqlite3
+*.pyc
+__pycache__/
+.env
+*.log
+
