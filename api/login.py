@@ -4,8 +4,8 @@ import secrets
 import os
 
 app = Flask(__name__)
-allowed_origins = (os.getenv('ALLOWED_ORIGINS') or 'https://starkest.vercel.app').split(',')
-CORS(app, origins=allowed_origins)
+allowed_origins = (os.getenv('ALLOWED_ORIGINS') or '*').split(',')
+CORS(app, origins=allowed_origins if allowed_origins != ['*'] else None)
 
 # Global token store (in production, consider using Redis or database)
 token_store = set()

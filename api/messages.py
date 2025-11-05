@@ -6,8 +6,8 @@ from datetime import datetime
 import secrets
 
 app = Flask(__name__)
-allowed_origins = (os.getenv('ALLOWED_ORIGINS') or 'https://starkest.vercel.app').split(',')
-CORS(app, origins=allowed_origins)
+allowed_origins = (os.getenv('ALLOWED_ORIGINS') or '*').split(',')
+CORS(app, origins=allowed_origins if allowed_origins != ['*'] else None)
 
 # Database will be stored in /tmp for Vercel serverless functions
 DB_PATH = os.path.join('/tmp', 'database.sqlite3')

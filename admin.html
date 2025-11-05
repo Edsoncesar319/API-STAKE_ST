@@ -63,7 +63,7 @@
         async function loadMessages() {
             const page = parseInt(document.getElementById('msgPage').value || '1');
             const pageSize = parseInt(document.getElementById('msgPageSize').value || '10');
-            const data = await fetchPaged('/api/messages', page, pageSize);
+            const data = await fetchPaged('/messages', page, pageSize);
             renderTable('messagesTable', data.items, [
                 { key: 'id', label: 'ID' },
                 { key: 'name', label: 'Nome' },
@@ -78,7 +78,7 @@
         async function loadBudgets() {
             const page = parseInt(document.getElementById('bdgPage').value || '1');
             const pageSize = parseInt(document.getElementById('bdgPageSize').value || '10');
-            const data = await fetchPaged('/api/budgets', page, pageSize);
+            const data = await fetchPaged('/budgets', page, pageSize);
             renderTable('budgetsTable', data.items, [
                 { key: 'id', label: 'ID' },
                 { key: 'name', label: 'Nome' },
@@ -94,11 +94,14 @@
         }
 
         async function doLogin(email, password) {
-            const res = await fetch(`${API_BASE}/api/login`, {
+            const res = await fetch(`${API_BASE}/login`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
-            if (!res.ok) throw new Error('Login inválido');
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Login inválido');
+            }
             const data = await res.json();
             AUTH_TOKEN = data.token;
             localStorage.setItem('starke_admin_token', AUTH_TOKEN);
@@ -120,12 +123,12 @@
                     loadMessages();
                     loadBudgets();
                 } catch (e) {
-                    err.textContent = 'Credenciais inválidas';
+                    err.textContent = e.message || 'Credenciais inválidas';
                 }
             });
             document.getElementById('logoutBtn').addEventListener('click', async () => {
                 try {
-                    await fetch(`${API_BASE}/api/logout`, { method: 'POST', headers: AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : {} });
+                    await fetch(`${API_BASE}/logout`, { method: 'POST', headers: AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : {} });
                 } catch (e) {}
                 AUTH_TOKEN = '';
                 localStorage.removeItem('starke_admin_token');
