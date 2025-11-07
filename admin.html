@@ -63,12 +63,32 @@
 
         /* Tables */
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; border: var(--border); background: var(--card); box-shadow: var(--shadow); }
-        table { width: 100%; border-collapse: collapse; min-width: 680px; }
-        thead th { position: sticky; top: 0; background: color-mix(in oklab, var(--card), black 4%); z-index: 1; font-weight: 600; }
-        th, td { border-bottom: var(--border); text-align: left; padding: 10px; vertical-align: top; }
-        tbody tr:nth-child(odd) { background: color-mix(in oklab, var(--card), black 2%); }
-        tbody tr:hover { background: color-mix(in oklab, var(--accent), var(--card) 92%); }
-        td .mono { line-height: 1.35; }
+        .table-responsive table { width: 100%; border-collapse: collapse; min-width: 680px; }
+        .table-responsive thead th { position: sticky; top: 0; background: color-mix(in oklab, var(--card), black 4%); z-index: 1; font-weight: 600; }
+        .table-responsive th,
+        .table-responsive td { border-bottom: var(--border); text-align: left; padding: 10px; vertical-align: top; word-break: break-word; }
+        .table-responsive tbody tr:nth-child(odd) { background: color-mix(in oklab, var(--card), black 2%); }
+        .table-responsive tbody tr:hover { background: color-mix(in oklab, var(--accent), var(--card) 92%); }
+        .table-responsive td .mono { line-height: 1.35; }
+
+        @media (max-width: 720px) {
+            .header-inner { flex-wrap: wrap; }
+            .brand { width: 100%; justify-content: space-between; }
+            .theme-toggle { width: 100%; text-align: center; }
+            .controls { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; border: var(--border); border-radius: 12px; background: color-mix(in oklab, var(--card), black 3%); }
+            .controls label { width: 100%; justify-content: space-between; }
+            .controls label input { max-width: none; flex: 1; }
+            .table-responsive { border: none; box-shadow: none; background: transparent; padding: 0; }
+            .table-responsive table { min-width: 0; }
+            .table-responsive thead { display: none; }
+            .table-responsive tbody { display: grid; gap: 12px; }
+            .table-responsive tbody tr { display: grid; gap: 8px; padding: 14px; border: var(--border); border-radius: 14px; box-shadow: var(--shadow); background: var(--card); }
+            .table-responsive tbody tr:nth-child(odd) { background: var(--card); }
+            .table-responsive tbody tr:hover { background: color-mix(in oklab, var(--accent), var(--card) 94%); }
+            .table-responsive td { display: flex; border: none; padding: 0; gap: 12px; justify-content: space-between; align-items: baseline; }
+            .table-responsive td::before { content: attr(data-label); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); flex: 0 0 auto; }
+            .table-responsive td .mono { font-size: 13px; }
+        }
 
         /* Responsive helpers */
         @media (max-width: 900px) {
@@ -80,9 +100,10 @@
             h2 { font-size: 18px; }
             body { font-size: 15px; }
             .controls { gap: 6px; }
-            .controls label input { width: 100%; max-width: 120px; }
+            .controls label input { width: 100%; max-width: none; }
             .nowrap { white-space: normal; }
-            th, td { padding: 8px; }
+            .table-responsive th,
+            .table-responsive td { padding: 8px; }
         }
         @media (max-width: 480px) {
             body { font-size: 14px; }
@@ -124,6 +145,7 @@
                 columns.forEach(c => {
                     const td = document.createElement('td');
                     const value = c.format ? c.format(item[c.key], item) : item[c.key];
+                    td.dataset.label = c.label;
                     td.innerHTML = value ?? '';
                     tr.appendChild(td);
                 });
