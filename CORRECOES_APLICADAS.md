@@ -26,20 +26,31 @@ O erro estava relacionado ao uso de `datetime.utcnow()` que foi **depreciado** n
 - ❌ Antes: `'iat': datetime.utcnow()`
 - ✅ Agora: `'iat': datetime.now(timezone.utc)`
 
+## ✅ Correção Adicional: Lazy Initialization do DB_PATH
+
+### Problema
+O arquivo `api/_db.py` tinha código executado no nível do módulo que acessava o sistema de arquivos durante a importação, causando falhas no build da Vercel.
+
+### Solução
+Implementada **lazy initialization** - o caminho do banco de dados só é calculado quando necessário (quando `get_db()` ou `init_db()` são chamados), não durante a importação.
+
+**Arquivo corrigido:** `api/_db.py`
+
 ## ✅ Verificações Realizadas
 
 - ✅ Todos os arquivos Python têm sintaxe válida
 - ✅ Todos os imports funcionam corretamente
 - ✅ Dependências estão instaladas
 - ✅ Configuração do Vercel está correta
+- ✅ Lazy initialization implementada para DB_PATH
 
 ## 🚀 Próximos Passos
 
 ### 1. Fazer Commit das Alterações
 
 ```bash
-git add api/messages.py api/budgets.py api/_jwt_helper.py
-git commit -m "fix: atualizar datetime.utcnow() para datetime.now(timezone.utc) - compatibilidade Python 3.12+"
+git add api/messages.py api/budgets.py api/_jwt_helper.py api/_db.py
+git commit -m "fix: atualizar datetime.utcnow() e implementar lazy initialization do DB_PATH"
 ```
 
 ### 2. Fazer Deploy na Vercel
