@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 
 # Add api directory to path for imports
@@ -55,7 +55,7 @@ class handler(BaseHTTPRequestHandler):
                     data['details'].strip(),
                     (data.get('company') or '').strip(),
                     data['city'].strip(),
-                    datetime.utcnow().isoformat()
+                    datetime.now(timezone.utc).isoformat()
                 )
             )
             db.commit()

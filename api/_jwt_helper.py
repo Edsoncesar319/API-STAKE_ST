@@ -9,7 +9,7 @@ except ImportError:
     import secrets
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Secret key for JWT signing (use environment variable in production)
 SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
@@ -23,8 +23,8 @@ def generate_token(user_email='admin'):
     try:
         payload = {
             'email': user_email,
-            'exp': datetime.utcnow() + timedelta(hours=24),  # Token expires in 24 hours
-            'iat': datetime.utcnow()
+            'exp': datetime.now(timezone.utc) + timedelta(hours=24),  # Token expires in 24 hours
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
         # PyJWT 2.x returns string, but check if it's bytes
