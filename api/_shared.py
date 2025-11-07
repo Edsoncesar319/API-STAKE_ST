@@ -5,13 +5,25 @@ import os
 import json
 
 # Token file path - shared across serverless functions via /tmp
-TOKEN_FILE = os.path.join('/tmp', 'tokens.json')
+# Lazy initialization to avoid issues during build
+TOKEN_FILE = None
+
+def _get_token_file():
+    """Get token file path, initializing if necessary"""
+    global TOKEN_FILE
+    if TOKEN_FILE is None:
+        try:
+            TOKEN_FILE = os.path.join('/tmp', 'tokens.json')
+        except:
+            TOKEN_FILE = '/tmp/tokens.json'
+    return TOKEN_FILE
 
 def get_token_store():
     """Get token store from file"""
     try:
-        if os.path.exists(TOKEN_FILE):
-            with open(TOKEN_FILE, 'r') as f:
+        token_file = _get_token_file()
+        if os.path.exists(token_file):
+            with open(token_file, 'r') as f:
                 data = json.load(f)
                 return set(data.get('tokens', []))
     except:
@@ -21,7 +33,8 @@ def get_token_store():
 def save_token_store(token_set):
     """Save token store to file"""
     try:
-        with open(TOKEN_FILE, 'w') as f:
+        token_file = _get_token_file()
+        with open(token_file, 'w') as f:
             json.dump({'tokens': list(token_set)}, f)
     except:
         pass
