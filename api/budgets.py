@@ -6,7 +6,12 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 
 # Add api directory to path for imports
-sys.path.insert(0, os.path.dirname(__file__))
+try:
+    api_dir = os.path.dirname(__file__)
+    if api_dir and api_dir not in sys.path:
+        sys.path.insert(0, api_dir)
+except:
+    pass
 
 try:
     from _db import get_db, init_db
@@ -14,6 +19,11 @@ try:
 except ImportError:
     def verify_token(token):
         return None
+    def get_db():
+        import sqlite3
+        return sqlite3.connect('/tmp/database.sqlite3')
+    def init_db():
+        pass
 
 def require_auth(headers):
     auth_header = headers.get('Authorization', '')

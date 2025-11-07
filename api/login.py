@@ -5,7 +5,12 @@ import sys
 import os.path
 
 # Add api directory to path for imports
-sys.path.insert(0, os.path.dirname(__file__))
+try:
+    api_dir = os.path.dirname(__file__)
+    if api_dir and api_dir not in sys.path:
+        sys.path.insert(0, api_dir)
+except:
+    pass
 
 try:
     from _jwt_helper import generate_token
