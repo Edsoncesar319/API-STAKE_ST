@@ -12,7 +12,15 @@ import os
 from datetime import datetime, timedelta, timezone
 
 # Secret key for JWT signing (use environment variable in production)
-SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
+# Lazy initialization to avoid issues during build
+_SECRET_KEY = None
+
+def _get_secret_key():
+    """Get JWT secret key, initializing if necessary"""
+    global _SECRET_KEY
+    if _SECRET_KEY is None:
+        _SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
+    return _SECRET_KEY
 
 def generate_token(user_email='admin'):
     """Generate JWT token for authenticated user"""
@@ -26,7 +34,7 @@ def generate_token(user_email='admin'):
             'exp': datetime.now(timezone.utc) + timedelta(hours=24),  # Token expires in 24 hours
             'iat': datetime.now(timezone.utc)
         }
-        token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+        token = jwt.encode(payload, _get_secret_key(), algorithm='HS256')
         # PyJWT 2.x returns string, but check if it's bytes
         if isinstance(token, bytes):
             return token.decode('utf-8')
@@ -45,7 +53,7 @@ def verify_token(token):
         return None
     
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        payload = jwt.decode(token, _get_secret_key(), algorithms=['HS256'])
         return payload
     except jwt.ExpiredSignatureError:
         return None  # Token expired
