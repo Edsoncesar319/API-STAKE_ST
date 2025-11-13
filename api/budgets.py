@@ -14,20 +14,17 @@ except:  # pragma: no cover - defensive path setup
     pass
 
 try:
-    from _db import get_db, init_db, sync_after_write
+    from _db import get_db, init_db
     from _jwt_helper import verify_token
 except ImportError:  # pragma: no cover - fallback for local tools
     def verify_token(token):
         return None
-    
+
     def get_db():
         import sqlite3
         return sqlite3.connect('/tmp/database.sqlite3')
-    
+
     def init_db():
-        pass
-    
-    def sync_after_write():
         pass
 
 
@@ -71,27 +68,14 @@ class handler(BaseHTTPRequestHandler):
             return {}
 
     def _extract_id(self, parsed_url=None):
-        """
-        Extrai o ID do path da URL.
-        Lida com paths como: /api/budgets/123, /budgets/123, /123, etc.
-        """
         if parsed_url is None:
             parsed_url = urlparse(self.path)
-        
-        # Remove segmentos vazios e obtém todos os segmentos do path
         segments = [segment for segment in parsed_url.path.split('/') if segment]
-        
         if not segments:
             return None
-        
-        # O ID deve ser o último segmento numérico
-        # Pode ser: /api/budgets/123 ou /budgets/123
         last = segments[-1]
-        
-        # Verifica se é um número
         if last.isdigit():
             return int(last)
-        
         return None
 
     # HTTP verbs ---------------------------------------------------------------
@@ -121,16 +105,11 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
             db.commit()
-            sync_after_write()  # Sincroniza com arquivo local
             new_id = cursor.lastrowid
             row = db.execute(
                 'SELECT id, name, email, phone, service, details, company, city, created_at FROM budgets WHERE id = ?',
                 (new_id,)
             ).fetchone()
-        except Exception as e:
-            db.rollback()
-            self._send_json(500, {"error": f"Erro ao criar orçamento: {str(e)}"})
-            return
         finally:
             db.close()
 
@@ -146,8 +125,7 @@ class handler(BaseHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         record_id = self._extract_id(parsed_url)
 
-        # Se temos um ID, significa que é uma requisição para um registro específico
-        if record_id is not None:
+        if record_id is not None and parsed_url.path.rstrip('/').endswith(str(record_id)):
             db = get_db()
             try:
                 row = db.execute(
@@ -226,15 +204,10 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
             db.commit()
-            sync_after_write()  # Sincroniza com arquivo local
             row = db.execute(
                 'SELECT id, name, email, phone, service, details, company, city, created_at FROM budgets WHERE id = ?',
                 (record_id,)
             ).fetchone()
-        except Exception as e:
-            db.rollback()
-            self._send_json(500, {"error": f"Erro ao atualizar orçamento: {str(e)}"})
-            return
         finally:
             db.close()
 
@@ -260,11 +233,6 @@ class handler(BaseHTTPRequestHandler):
                 return
             db.execute('DELETE FROM budgets WHERE id = ?', (record_id,))
             db.commit()
-            sync_after_write()  # Sincroniza com arquivo local
-        except Exception as e:
-            db.rollback()
-            self._send_json(500, {"error": f"Erro ao excluir orçamento: {str(e)}"})
-            return
         finally:
             db.close()
 
