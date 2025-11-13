@@ -246,17 +246,67 @@ Configure as seguintes variáveis de ambiente no dashboard do Vercel:
 
 ## 🗄️ Banco de Dados
 
-O projeto utiliza SQLite com a seguinte configuração:
+O projeto utiliza SQLite com uma configuração otimizada para funcionar tanto localmente quanto no Vercel serverless.
+
+### Configuração
 
 - **Desenvolvimento local**: Usa `database.sqlite3` na raiz do projeto
 - **Produção (Vercel)**: Usa `/tmp/database.sqlite3` (único local gravável em serverless)
+- **Estratégia automática**: Copia o banco da raiz para `/tmp` na primeira execução no Vercel (se existir)
+
+### Tabelas
 
 As tabelas são criadas automaticamente na primeira execução:
 
 - **messages**: Armazena mensagens de contato
+  - Campos: `id`, `name`, `email`, `subject`, `message`, `created_at`
+  - Índice otimizado em `created_at` para consultas ordenadas
+  
 - **budgets**: Armazena solicitações de orçamento
+  - Campos: `id`, `name`, `email`, `phone`, `service`, `details`, `company`, `city`, `created_at`
+  - Índice otimizado em `created_at` para consultas ordenadas
 
-**Nota sobre serverless:** Em funções serverless do Vercel, o diretório `/tmp` não é compartilhado entre diferentes funções. Cada função serverless (`messages.py`, `budgets.py`) tem seu próprio ambiente isolado. Para produção em escala com múltiplas funções, considere usar um banco de dados externo (PostgreSQL, MySQL, etc.).
+### Otimizações Implementadas
+
+1. **Write-Ahead Logging (WAL)**: Melhor performance em operações concorrentes
+2. **Foreign Keys**: Validação de integridade referencial
+3. **Índices**: Consultas mais rápidas em campos frequentemente usados
+4. **Context Manager**: Gerenciamento automático de transações com `get_db_context()`
+5. **Backup/Restore**: Funções para backup e restauração do banco
+
+### Endpoints de Administração
+
+O endpoint `/api/db-admin` permite gerenciar o banco de dados (requer autenticação):
+
+- **GET `/api/db-admin`**: Retorna informações sobre o banco (caminho, tamanho, contagem de registros)
+- **GET `/api/db-admin/backup`**: Faz download do backup do banco (retorna base64)
+- **POST `/api/db-admin/restore`**: Restaura o banco a partir de um backup (envia base64 no body)
+- **POST `/api/db-admin/init`**: Reinicializa as tabelas do banco
+
+**Exemplo de uso do backup:**
+```bash
+# Fazer backup
+curl -H "Authorization: Bearer TOKEN" https://seu-dominio.vercel.app/api/db-admin/backup > backup.json
+
+# Restaurar backup
+curl -X POST \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"backup": "BASE64_DO_BACKUP"}' \
+  https://seu-dominio.vercel.app/api/db-admin/restore
+```
+
+### ⚠️ Importante sobre Serverless
+
+**Limitações do Vercel Serverless:**
+- O diretório `/tmp` é efêmero - dados são perdidos entre cold starts
+- Cada função serverless tem seu próprio ambiente isolado
+- Não há persistência compartilhada entre execuções
+
+**Recomendações:**
+- Para produção em escala, use um banco de dados externo (PostgreSQL, MySQL, Vercel Postgres)
+- Faça backups regulares usando o endpoint `/api/db-admin/backup`
+- Considere migrar para um banco gerenciado se precisar de persistência garantida
 
 ## 🔒 Segurança
 
