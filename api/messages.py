@@ -68,14 +68,27 @@ class handler(BaseHTTPRequestHandler):
             return {}
 
     def _extract_id(self, parsed_url=None):
+        """
+        Extrai o ID do path da URL.
+        Lida com paths como: /api/messages/123, /messages/123, /123, etc.
+        """
         if parsed_url is None:
             parsed_url = urlparse(self.path)
+        
+        # Remove segmentos vazios e obtém todos os segmentos do path
         segments = [segment for segment in parsed_url.path.split('/') if segment]
+        
         if not segments:
             return None
+        
+        # O ID deve ser o último segmento numérico
+        # Pode ser: /api/messages/123 ou /messages/123
         last = segments[-1]
+        
+        # Verifica se é um número
         if last.isdigit():
             return int(last)
+        
         return None
 
     # HTTP verbs ---------------------------------------------------------------
@@ -107,6 +120,10 @@ class handler(BaseHTTPRequestHandler):
                 'SELECT id, name, email, subject, message, created_at FROM messages WHERE id = ?',
                 (new_id,)
             ).fetchone()
+        except Exception as e:
+            db.rollback()
+            self._send_json(500, {"error": f"Erro ao criar mensagem: {str(e)}"})
+            return
         finally:
             db.close()
 
@@ -122,7 +139,8 @@ class handler(BaseHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         record_id = self._extract_id(parsed_url)
 
-        if record_id is not None and parsed_url.path.rstrip('/').endswith(str(record_id)):
+        # Se temos um ID, significa que é uma requisição para um registro específico
+        if record_id is not None:
             db = get_db()
             try:
                 row = db.execute(
@@ -202,6 +220,10 @@ class handler(BaseHTTPRequestHandler):
                 'SELECT id, name, email, subject, message, created_at FROM messages WHERE id = ?',
                 (record_id,)
             ).fetchone()
+        except Exception as e:
+            db.rollback()
+            self._send_json(500, {"error": f"Erro ao atualizar mensagem: {str(e)}"})
+            return
         finally:
             db.close()
 
@@ -227,6 +249,10 @@ class handler(BaseHTTPRequestHandler):
                 return
             db.execute('DELETE FROM messages WHERE id = ?', (record_id,))
             db.commit()
+        except Exception as e:
+            db.rollback()
+            self._send_json(500, {"error": f"Erro ao excluir mensagem: {str(e)}"})
+            return
         finally:
             db.close()
 
