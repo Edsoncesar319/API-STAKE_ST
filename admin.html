@@ -125,7 +125,9 @@
         @media (max-width: 480px) {
             body { font-size: 14px; }
             .controls { flex-direction: row; }
-            #loginView { margin: 16px 8px !important; }
+            #loginView { margin: 40px 16px !important; padding: 28px 20px !important; max-width: calc(100% - 32px) !important; }
+            #loginView h2 { font-size: 22px !important; margin-bottom: 20px !important; }
+            #loginForm { gap: 14px !important; }
             #loginForm input, #loginForm button { width: 100%; box-sizing: border-box; }
             .theme-toggle { padding: 6px 10px; }
         }
@@ -569,13 +571,13 @@
         </div>
     </header>
     <main>
-        <section id="loginView" class="card" style="display:none; max-width:480px; margin:24px auto;">
-            <h2>Login do Admin</h2>
-            <form id="loginForm" class="flex" style="flex-direction: column; align-items: stretch;">
-                <input id="loginEmail" type="email" placeholder="Email" value="Superadm@starkeST.com" required>
-                <input id="loginPassword" type="password" placeholder="Senha" required>
-                <div id="loginError" class="muted" style="color:#dc2626"></div>
-                <button type="submit" class="btn btn-primary">Entrar</button>
+        <section id="loginView" class="card" style="display:none; max-width:420px; margin:60px auto; padding:32px 28px;">
+            <h2 style="margin:0 0 24px 0; font-size:24px; text-align:center; font-weight:600;">Login do Admin</h2>
+            <form id="loginForm" class="flex" style="flex-direction: column; align-items: stretch; gap:16px;">
+                <input id="loginEmail" type="email" placeholder="Email" value="Superadm@starkeST.com" required style="padding:12px 14px; font-size:15px;">
+                <input id="loginPassword" type="password" placeholder="Senha" required style="padding:12px 14px; font-size:15px;">
+                <div id="loginError" class="muted" style="color:#dc2626; min-height:20px; font-size:13px; margin-top:-8px;"></div>
+                <button type="submit" class="btn btn-primary" style="padding:12px 20px; font-size:15px; font-weight:500; margin-top:4px;">Entrar</button>
             </form>
         </section>
 
