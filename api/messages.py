@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import sys
+import traceback
 from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 
@@ -114,31 +115,60 @@ def _read_json_body(req):
 
 def _get_headers(req):
     """Extrai headers do request"""
-    if hasattr(req, 'headers'):
-        return req.headers or {}
-    elif isinstance(req, dict):
-        return req.get('headers', {})
+    try:
+        if hasattr(req, 'headers'):
+            headers = req.headers
+            if headers:
+                return dict(headers) if not isinstance(headers, dict) else headers
+        if isinstance(req, dict):
+            headers = req.get('headers', {})
+            return dict(headers) if headers else {}
+    except:
+        pass
     return {}
 
 
 def _get_path(req):
     """Extrai path do request"""
-    if hasattr(req, 'path'):
-        return req.path or '/'
-    elif hasattr(req, 'url'):
-        url = req.url or '/'
-        if '?' in url:
-            return url.split('?')[0]
-        return url
+    try:
+        if hasattr(req, 'path'):
+            path = req.path
+            if path:
+                return str(path)
+        if hasattr(req, 'url'):
+            url = req.url
+            if url:
+                url_str = str(url)
+                if '?' in url_str:
+                    return url_str.split('?')[0]
+                return url_str
+        # Tenta acessar como dict
+        if isinstance(req, dict):
+            path = req.get('path') or req.get('url', '/')
+            if isinstance(path, str) and '?' in path:
+                return path.split('?')[0]
+            return str(path) if path else '/'
+    except:
+        pass
     return '/'
 
 
 def _get_method(req):
     """Extrai método HTTP do request"""
-    if hasattr(req, 'method'):
-        return (req.method or 'GET').upper()
-    elif hasattr(req, 'get'):
-        return req.get('method', 'GET').upper()
+    try:
+        if hasattr(req, 'method'):
+            method = req.method
+            if method:
+                return str(method).upper()
+        if hasattr(req, 'get'):
+            method = req.get('method', 'GET')
+            return str(method).upper()
+        # Tenta acessar como dict
+        if isinstance(req, dict):
+            method = req.get('method', 'GET')
+            return str(method).upper()
+    except:
+        pass
     return 'GET'
 
 
@@ -395,9 +425,25 @@ def vercel_handler(req, res):
     Handler direto para Vercel que processa todos os métodos HTTP
     """
     try:
+        # Validação básica
+        if req is None:
+            _send_json_response(res, 500, {"error": "Request é None"})
+            return
+        
+        if res is None:
+            # Se res é None, pode ser que esteja sendo chamado de forma diferente
+            # Tenta retornar um dict com a resposta
+            return {"error": "Response é None"}
+        
         method = _get_method(req)
         path = _get_path(req)
         headers = _get_headers(req)
+        
+        # Normaliza o path - remove /api se presente
+        if path.startswith('/api/messages'):
+            path = path.replace('/api/messages', '/messages', 1)
+        elif path.startswith('/api'):
+            path = path.replace('/api', '', 1)
         
         # OPTIONS - CORS preflight
         if method == 'OPTIONS':
@@ -587,7 +633,14 @@ def vercel_handler(req, res):
         _send_json_response(res, 405, {"error": f"Método {method} não permitido"})
         
     except Exception as e:
-        _send_json_response(res, 500, {"error": f"Erro interno: {str(e)}"})
+        error_trace = traceback.format_exc()
+        # Log do erro (pode ser visto nos logs do Vercel)
+        try:
+            print(f"Erro em vercel_handler: {str(e)}")
+            print(f"Traceback: {error_trace}")
+        except:
+            pass
+        _send_json_response(res, 500, {"error": f"Erro interno: {str(e)}", "details": error_trace if os.getenv('VERCEL_ENV') == 'development' else None})
 
 
 # Substitui handler pela função vercel_handler para compatibilidade com Vercel
