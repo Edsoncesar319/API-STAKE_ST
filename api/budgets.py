@@ -14,17 +14,20 @@ except:  # pragma: no cover - defensive path setup
     pass
 
 try:
-    from _db import get_db, init_db
+    from _db import get_db, init_db, sync_after_write
     from _jwt_helper import verify_token
 except ImportError:  # pragma: no cover - fallback for local tools
     def verify_token(token):
         return None
-
+    
     def get_db():
         import sqlite3
         return sqlite3.connect('/tmp/database.sqlite3')
-
+    
     def init_db():
+        pass
+    
+    def sync_after_write():
         pass
 
 
@@ -118,6 +121,7 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
             db.commit()
+            sync_after_write()  # Sincroniza com arquivo local
             new_id = cursor.lastrowid
             row = db.execute(
                 'SELECT id, name, email, phone, service, details, company, city, created_at FROM budgets WHERE id = ?',
@@ -222,6 +226,7 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
             db.commit()
+            sync_after_write()  # Sincroniza com arquivo local
             row = db.execute(
                 'SELECT id, name, email, phone, service, details, company, city, created_at FROM budgets WHERE id = ?',
                 (record_id,)
@@ -255,6 +260,7 @@ class handler(BaseHTTPRequestHandler):
                 return
             db.execute('DELETE FROM budgets WHERE id = ?', (record_id,))
             db.commit()
+            sync_after_write()  # Sincroniza com arquivo local
         except Exception as e:
             db.rollback()
             self._send_json(500, {"error": f"Erro ao excluir orçamento: {str(e)}"})
