@@ -44,15 +44,19 @@
         h2 { margin: 0 0 12px 0; font-size: 18px; }
 
         /* Inputs & Buttons */
-        input, select, button { padding: 10px 12px; border: var(--border); border-radius: 8px; background: transparent; color: inherit; }
+        input, select, button, textarea { padding: 10px 12px; border: var(--border); border-radius: 8px; background: transparent; color: inherit; font-family: inherit; }
         input::placeholder { color: var(--muted); }
-        input:focus, select:focus { outline: 2px solid color-mix(in oklab, var(--accent), white 20%); border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 90%); }
+        textarea::placeholder { color: var(--muted); }
+        textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+        input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in oklab, var(--accent), white 20%); border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 90%); }
         .btn { cursor: pointer; user-select: none; transition: background .15s, box-shadow .15s, transform .04s; }
         .btn:active { transform: translateY(1px); }
         .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 6px 16px color-mix(in oklab, var(--accent), transparent 80%); }
         .btn-primary:hover { background: var(--accent-600); }
         .btn-ghost { background: transparent; color: inherit; border-color: var(--border-color); }
         .btn-ghost:hover { background: rgba(148,163,184,0.12); }
+        .btn-danger { background: #dc2626; border-color: #dc2626; color: #fff; box-shadow: 0 6px 16px rgba(220,38,38,0.18); }
+        .btn-danger:hover { background: #b91c1c; }
 
         .muted { color: var(--muted); }
         .nowrap { white-space: nowrap; }
@@ -60,6 +64,15 @@
         .flex { display: flex; gap: 8px; align-items: center; }
         .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
         .controls label { display: flex; align-items: center; gap: 6px; }
+        .form-panel { margin-bottom: 16px; padding: 14px; border: var(--border); border-radius: 12px; background: color-mix(in oklab, var(--card), black 8%); display: grid; gap: 12px; }
+        .form-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+        .form-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+        .form-grid textarea { grid-column: 1 / -1; }
+        .form-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .form-status { min-height: 18px; font-size: 13px; color: var(--muted); }
+        .form-status.success { color: #16a34a; }
+        .form-status.error { color: #dc2626; }
+        .action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
 
         /* Tables */
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; border: var(--border); background: var(--card); box-shadow: var(--shadow); }
@@ -89,6 +102,10 @@
             .table-responsive td::before { content: attr(data-label); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); flex: 0 0 auto; }
             .table-responsive td .mono { font-size: 13px; }
         }
+        @media (max-width: 600px) {
+            .form-panel { padding: 12px; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
 
         /* Responsive helpers */
         @media (max-width: 900px) {
@@ -116,37 +133,123 @@
     <script>
         const API_BASE = (window.__API_BASE_URL__ || (document.querySelector('meta[name="api-base-url"]')?.getAttribute('content')) || '/api');
         let AUTH_TOKEN = '';
+        const state = {
+            messages: { items: [], editingId: null },
+            budgets: { items: [], editingId: null }
+        };
+
+        const messageColumns = [
+            { key: 'id', label: 'ID' },
+            { key: 'name', label: 'Nome' },
+            { key: 'email', label: 'Email' },
+            { key: 'subject', label: 'Assunto' },
+            { key: 'message', label: 'Mensagem', format: (value) => `<div class="mono">${escapeHtml(value || '').replace(/\n/g, '<br>')}</div>` },
+            { key: 'created_at', label: 'Criado em', format: (value) => `<span class="muted nowrap">${escapeHtml(value || '')}</span>` },
+            { key: '__actions', label: 'Ações', format: (_, item) => `<div class="action-buttons"><button type="button" class="btn btn-ghost" data-action="edit-message" data-id="${item.id}">Editar</button><button type="button" class="btn btn-danger" data-action="delete-message" data-id="${item.id}">Excluir</button></div>` }
+        ];
+
+        const budgetColumns = [
+            { key: 'id', label: 'ID' },
+            { key: 'name', label: 'Nome' },
+            { key: 'email', label: 'Email' },
+            { key: 'phone', label: 'Telefone' },
+            { key: 'service', label: 'Serviço' },
+            { key: 'details', label: 'Detalhes', format: (value) => `<div class="mono">${escapeHtml(value || '').replace(/\n/g, '<br>')}</div>` },
+            { key: 'company', label: 'Empresa' },
+            { key: 'city', label: 'Cidade/UF' },
+            { key: 'created_at', label: 'Criado em', format: (value) => `<span class="muted nowrap">${escapeHtml(value || '')}</span>` },
+            { key: '__actions', label: 'Ações', format: (_, item) => `<div class="action-buttons"><button type="button" class="btn btn-ghost" data-action="edit-budget" data-id="${item.id}">Editar</button><button type="button" class="btn btn-danger" data-action="delete-budget" data-id="${item.id}">Excluir</button></div>` }
+        ];
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function setFormStatus(elementId, message, tone = 'muted') {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = `form-status ${tone}`;
+        }
+
+        async function apiRequest(endpoint, { method = 'GET', body, headers = {} } = {}) {
+            const options = {
+                method,
+                headers: { ...headers }
+            };
+            if (AUTH_TOKEN) {
+                options.headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+            }
+            if (body !== undefined) {
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(body);
+            }
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            const text = await response.text();
+            let data = null;
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = null;
+                }
+            }
+            if (!response.ok) {
+                const message = data?.error || data?.message || `Erro ${response.status}`;
+                throw new Error(message);
+            }
+            return data ?? {};
+        }
+
         async function fetchPaged(endpoint, page, pageSize) {
-            const res = await fetch(`${API_BASE}${endpoint}?page=${page}&page_size=${pageSize}`, {
-                headers: AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : {}
-            });
-            if (!res.ok) throw new Error('Erro ao carregar');
-            return res.json();
+            return apiRequest(`${endpoint}?page=${page}&page_size=${pageSize}`);
         }
 
         function renderTable(containerId, items, columns) {
             const container = document.getElementById(containerId);
+            if (!container) return;
             container.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'muted';
+                emptyState.textContent = 'Nenhum registro encontrado.';
+                container.appendChild(emptyState);
+                return;
+            }
+
             const wrap = document.createElement('div');
             wrap.className = 'table-responsive';
             const table = document.createElement('table');
             const thead = document.createElement('thead');
             const trh = document.createElement('tr');
-            columns.forEach(c => {
+            columns.forEach((column) => {
                 const th = document.createElement('th');
-                th.textContent = c.label;
+                th.textContent = column.label;
                 trh.appendChild(th);
             });
             thead.appendChild(trh);
             table.appendChild(thead);
+
             const tbody = document.createElement('tbody');
-            items.forEach(item => {
+            items.forEach((item) => {
                 const tr = document.createElement('tr');
-                columns.forEach(c => {
+                columns.forEach((column) => {
                     const td = document.createElement('td');
-                    const value = c.format ? c.format(item[c.key], item) : item[c.key];
-                    td.dataset.label = c.label;
-                    td.innerHTML = value ?? '';
+                    td.dataset.label = column.label;
+                    if (typeof column.format === 'function') {
+                        const formatted = column.format(item[column.key], item);
+                        td.innerHTML = formatted ?? '';
+                    } else {
+                        const value = item[column.key];
+                        td.textContent = value === undefined || value === null ? '' : value;
+                    }
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);
@@ -157,41 +260,43 @@
         }
 
         async function loadMessages() {
-            const page = parseInt(document.getElementById('msgPage').value || '1');
-            const pageSize = parseInt(document.getElementById('msgPageSize').value || '10');
-            const data = await fetchPaged('/messages', page, pageSize);
-            renderTable('messagesTable', data.items, [
-                { key: 'id', label: 'ID' },
-                { key: 'name', label: 'Nome' },
-                { key: 'email', label: 'Email' },
-                { key: 'subject', label: 'Assunto' },
-                { key: 'message', label: 'Mensagem', format: v => `<div class="mono">${(v||'').replace(/\n/g,'<br>')}</div>` },
-                { key: 'created_at', label: 'Criado em', format: v => `<span class="muted nowrap">${v}</span>` },
-            ]);
-            document.getElementById('msgTotal').textContent = data.total;
+            const page = parseInt(document.getElementById('msgPage').value || '1', 10);
+            const pageSize = parseInt(document.getElementById('msgPageSize').value || '10', 10);
+            try {
+                const data = await fetchPaged('/messages', page, pageSize);
+                state.messages.items = data.items || [];
+                document.getElementById('msgTotal').textContent = data.total ?? state.messages.items.length;
+                renderTable('messagesTable', state.messages.items, messageColumns);
+                setFormStatus('messageTableStatus', '');
+            } catch (error) {
+                state.messages.items = [];
+                document.getElementById('msgTotal').textContent = '0';
+                document.getElementById('messagesTable').innerHTML = '';
+                setFormStatus('messageTableStatus', error.message || 'Erro ao carregar mensagens.', 'error');
+            }
         }
 
         async function loadBudgets() {
-            const page = parseInt(document.getElementById('bdgPage').value || '1');
-            const pageSize = parseInt(document.getElementById('bdgPageSize').value || '10');
-            const data = await fetchPaged('/budgets', page, pageSize);
-            renderTable('budgetsTable', data.items, [
-                { key: 'id', label: 'ID' },
-                { key: 'name', label: 'Nome' },
-                { key: 'email', label: 'Email' },
-                { key: 'phone', label: 'Telefone' },
-                { key: 'service', label: 'Serviço' },
-                { key: 'details', label: 'Detalhes', format: v => `<div class="mono">${(v||'').replace(/\n/g,'<br>')}</div>` },
-                { key: 'company', label: 'Empresa' },
-                { key: 'city', label: 'Cidade/UF' },
-                { key: 'created_at', label: 'Criado em', format: v => `<span class="muted nowrap">${v}</span>` },
-            ]);
-            document.getElementById('bdgTotal').textContent = data.total;
+            const page = parseInt(document.getElementById('bdgPage').value || '1', 10);
+            const pageSize = parseInt(document.getElementById('bdgPageSize').value || '10', 10);
+            try {
+                const data = await fetchPaged('/budgets', page, pageSize);
+                state.budgets.items = data.items || [];
+                document.getElementById('bdgTotal').textContent = data.total ?? state.budgets.items.length;
+                renderTable('budgetsTable', state.budgets.items, budgetColumns);
+                setFormStatus('budgetTableStatus', '');
+            } catch (error) {
+                state.budgets.items = [];
+                document.getElementById('bdgTotal').textContent = '0';
+                document.getElementById('budgetsTable').innerHTML = '';
+                setFormStatus('budgetTableStatus', error.message || 'Erro ao carregar orçamentos.', 'error');
+            }
         }
 
         async function doLogin(email, password) {
             const res = await fetch(`${API_BASE}/login`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
             if (!res.ok) {
@@ -203,11 +308,196 @@
             localStorage.setItem('starke_admin_token', AUTH_TOKEN);
         }
 
+        function resetMessageForm() {
+            const form = document.getElementById('messageForm');
+            if (!form) return;
+            form.reset();
+            state.messages.editingId = null;
+            const hiddenId = document.getElementById('messageId');
+            if (hiddenId) hiddenId.value = '';
+            document.getElementById('messageFormTitle').textContent = 'Nova mensagem';
+            document.getElementById('messageFormSubtitle').textContent = 'Preencha os campos para cadastrar uma mensagem manualmente.';
+            document.getElementById('messageSubmitBtn').textContent = 'Criar';
+            setFormStatus('messageFormStatus', '');
+        }
+
+        function fillMessageForm(item) {
+            state.messages.editingId = item.id;
+            document.getElementById('messageId').value = item.id;
+            document.getElementById('messageName').value = item.name || '';
+            document.getElementById('messageEmail').value = item.email || '';
+            document.getElementById('messageSubject').value = item.subject || '';
+            document.getElementById('messageBody').value = item.message || '';
+            document.getElementById('messageFormTitle').textContent = `Editar mensagem #${item.id}`;
+            document.getElementById('messageFormSubtitle').textContent = `Criada em ${item.created_at || 'sem data registrada'}.`;
+            document.getElementById('messageSubmitBtn').textContent = 'Atualizar';
+            setFormStatus('messageFormStatus', 'Editando registro selecionado.', 'muted');
+        }
+
+        function resetBudgetForm() {
+            const form = document.getElementById('budgetForm');
+            if (!form) return;
+            form.reset();
+            state.budgets.editingId = null;
+            const hiddenId = document.getElementById('budgetId');
+            if (hiddenId) hiddenId.value = '';
+            document.getElementById('budgetFormTitle').textContent = 'Novo orçamento';
+            document.getElementById('budgetFormSubtitle').textContent = 'Cadastre orçamentos manualmente ou edite itens existentes.';
+            document.getElementById('budgetSubmitBtn').textContent = 'Criar';
+            setFormStatus('budgetFormStatus', '');
+        }
+
+        function fillBudgetForm(item) {
+            state.budgets.editingId = item.id;
+            document.getElementById('budgetId').value = item.id;
+            document.getElementById('budgetName').value = item.name || '';
+            document.getElementById('budgetEmail').value = item.email || '';
+            document.getElementById('budgetPhone').value = item.phone || '';
+            document.getElementById('budgetService').value = item.service || '';
+            document.getElementById('budgetCompany').value = item.company || '';
+            document.getElementById('budgetCity').value = item.city || '';
+            document.getElementById('budgetDetails').value = item.details || '';
+            document.getElementById('budgetFormTitle').textContent = `Editar orçamento #${item.id}`;
+            document.getElementById('budgetFormSubtitle').textContent = `Criado em ${item.created_at || 'sem data registrada'}.`;
+            document.getElementById('budgetSubmitBtn').textContent = 'Atualizar';
+            setFormStatus('budgetFormStatus', 'Editando registro selecionado.', 'muted');
+        }
+
+        async function handleMessageSubmit(event) {
+            event.preventDefault();
+            const payload = {
+                name: document.getElementById('messageName').value.trim(),
+                email: document.getElementById('messageEmail').value.trim(),
+                subject: document.getElementById('messageSubject').value.trim(),
+                message: document.getElementById('messageBody').value.trim()
+            };
+
+            const submitBtn = document.getElementById('messageSubmitBtn');
+            submitBtn.disabled = true;
+            const cancelBtn = document.getElementById('messageCancel');
+            cancelBtn.disabled = true;
+            setFormStatus('messageFormStatus', 'Salvando...', 'muted');
+            try {
+                if (state.messages.editingId) {
+                    await apiRequest(`/messages/${state.messages.editingId}`, { method: 'PUT', body: payload });
+                    resetMessageForm();
+                    setFormStatus('messageFormStatus', 'Mensagem atualizada com sucesso.', 'success');
+                } else {
+                    await apiRequest('/messages', { method: 'POST', body: payload });
+                    resetMessageForm();
+                    setFormStatus('messageFormStatus', 'Mensagem criada com sucesso.', 'success');
+                }
+                await loadMessages();
+            } catch (error) {
+                setFormStatus('messageFormStatus', error.message || 'Erro ao salvar mensagem.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                cancelBtn.disabled = false;
+            }
+        }
+
+        async function handleBudgetSubmit(event) {
+            event.preventDefault();
+            const payload = {
+                name: document.getElementById('budgetName').value.trim(),
+                email: document.getElementById('budgetEmail').value.trim(),
+                phone: document.getElementById('budgetPhone').value.trim(),
+                service: document.getElementById('budgetService').value.trim(),
+                details: document.getElementById('budgetDetails').value.trim(),
+                company: document.getElementById('budgetCompany').value.trim(),
+                city: document.getElementById('budgetCity').value.trim()
+            };
+
+            const submitBtn = document.getElementById('budgetSubmitBtn');
+            submitBtn.disabled = true;
+            const cancelBtn = document.getElementById('budgetCancel');
+            cancelBtn.disabled = true;
+            setFormStatus('budgetFormStatus', 'Salvando...', 'muted');
+            try {
+                if (state.budgets.editingId) {
+                    await apiRequest(`/budgets/${state.budgets.editingId}`, { method: 'PUT', body: payload });
+                    resetBudgetForm();
+                    setFormStatus('budgetFormStatus', 'Orçamento atualizado com sucesso.', 'success');
+                } else {
+                    await apiRequest('/budgets', { method: 'POST', body: payload });
+                    resetBudgetForm();
+                    setFormStatus('budgetFormStatus', 'Orçamento criado com sucesso.', 'success');
+                }
+                await loadBudgets();
+            } catch (error) {
+                setFormStatus('budgetFormStatus', error.message || 'Erro ao salvar orçamento.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                cancelBtn.disabled = false;
+            }
+        }
+
+        async function handleMessageAction(event) {
+            const target = event.target.closest('button[data-action]');
+            if (!target) return;
+            const action = target.dataset.action;
+            const id = parseInt(target.dataset.id || '', 10);
+            if (!id) return;
+            const item = state.messages.items.find((row) => row.id === id);
+
+            if (action === 'edit-message' && item) {
+                fillMessageForm(item);
+                return;
+            }
+
+            if (action === 'delete-message') {
+                const confirmed = window.confirm(`Deseja excluir a mensagem #${id}?`);
+                if (!confirmed) return;
+                try {
+                    await apiRequest(`/messages/${id}`, { method: 'DELETE' });
+                    if (state.messages.editingId === id) {
+                        resetMessageForm();
+                    }
+                    setFormStatus('messageFormStatus', 'Mensagem excluída com sucesso.', 'success');
+                    await loadMessages();
+                } catch (error) {
+                    setFormStatus('messageFormStatus', error.message || 'Erro ao excluir mensagem.', 'error');
+                }
+            }
+        }
+
+        async function handleBudgetAction(event) {
+            const target = event.target.closest('button[data-action]');
+            if (!target) return;
+            const action = target.dataset.action;
+            const id = parseInt(target.dataset.id || '', 10);
+            if (!id) return;
+            const item = state.budgets.items.find((row) => row.id === id);
+
+            if (action === 'edit-budget' && item) {
+                fillBudgetForm(item);
+                return;
+            }
+
+            if (action === 'delete-budget') {
+                const confirmed = window.confirm(`Deseja excluir o orçamento #${id}?`);
+                if (!confirmed) return;
+                try {
+                    await apiRequest(`/budgets/${id}`, { method: 'DELETE' });
+                    if (state.budgets.editingId === id) {
+                        resetBudgetForm();
+                    }
+                    setFormStatus('budgetFormStatus', 'Orçamento excluído com sucesso.', 'success');
+                    await loadBudgets();
+                } catch (error) {
+                    setFormStatus('budgetFormStatus', error.message || 'Erro ao excluir orçamento.', 'error');
+                }
+            }
+        }
+
         function bindControls() {
             document.getElementById('msgReload').addEventListener('click', loadMessages);
             document.getElementById('bdgReload').addEventListener('click', loadBudgets);
-            document.getElementById('loginForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
+            document.getElementById('messagesTable').addEventListener('click', handleMessageAction);
+            document.getElementById('budgetsTable').addEventListener('click', handleBudgetAction);
+
+            document.getElementById('loginForm').addEventListener('submit', async (event) => {
+                event.preventDefault();
                 const email = document.getElementById('loginEmail').value.trim();
                 const password = document.getElementById('loginPassword').value.trim();
                 const err = document.getElementById('loginError');
@@ -216,31 +506,52 @@
                     await doLogin(email, password);
                     document.getElementById('loginView').style.display = 'none';
                     document.getElementById('appView').style.display = 'block';
-                    loadMessages();
-                    loadBudgets();
-                } catch (e) {
-                    err.textContent = e.message || 'Credenciais inválidas';
+                    resetMessageForm();
+                    resetBudgetForm();
+                    await Promise.all([loadMessages(), loadBudgets()]);
+                } catch (error) {
+                    err.textContent = error.message || 'Credenciais inválidas';
                 }
             });
+
             document.getElementById('logoutBtn').addEventListener('click', async () => {
                 try {
-                    await fetch(`${API_BASE}/logout`, { method: 'POST', headers: AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : {} });
-                } catch (e) {}
+                    await fetch(`${API_BASE}/logout`, {
+                        method: 'POST',
+                        headers: AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : {}
+                    });
+                } catch (error) {
+                    console.warn('Falha ao encerrar sessão na API', error);
+                }
                 AUTH_TOKEN = '';
                 localStorage.removeItem('starke_admin_token');
                 document.getElementById('appView').style.display = 'none';
                 document.getElementById('loginView').style.display = 'block';
+                document.getElementById('messagesTable').innerHTML = '';
+                document.getElementById('budgetsTable').innerHTML = '';
+                document.getElementById('msgTotal').textContent = '0';
+                document.getElementById('bdgTotal').textContent = '0';
+                resetMessageForm();
+                resetBudgetForm();
+                setFormStatus('messageTableStatus', '');
+                setFormStatus('budgetTableStatus', '');
             });
+
+            document.getElementById('messageForm').addEventListener('submit', handleMessageSubmit);
+            document.getElementById('messageCancel').addEventListener('click', () => resetMessageForm());
+            document.getElementById('budgetForm').addEventListener('submit', handleBudgetSubmit);
+            document.getElementById('budgetCancel').addEventListener('click', () => resetBudgetForm());
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             AUTH_TOKEN = localStorage.getItem('starke_admin_token') || '';
             bindControls();
+            resetMessageForm();
+            resetBudgetForm();
             if (AUTH_TOKEN) {
                 document.getElementById('loginView').style.display = 'none';
                 document.getElementById('appView').style.display = 'block';
-                loadMessages();
-                loadBudgets();
+                await Promise.allSettled([loadMessages(), loadBudgets()]);
             } else {
                 document.getElementById('loginView').style.display = 'block';
                 document.getElementById('appView').style.display = 'none';
@@ -269,32 +580,73 @@
         </section>
 
         <section id="appView" style="display:none;">
-        <section class="card">
-            <div class="flex" style="justify-content: space-between;">
-                <h2>Mensagens</h2>
-                <div class="controls">
-                    <button id="logoutBtn" class="btn btn-ghost">Sair</button>
-                    <span>Total: <strong id="msgTotal">0</strong></span>
-                    <label>Page <input id="msgPage" type="number" min="1" value="1" style="width:88px"></label>
-                    <label>Size <input id="msgPageSize" type="number" min="1" max="100" value="10" style="width:88px"></label>
-                    <button id="msgReload" class="btn btn-primary">Recarregar</button>
+            <section class="card">
+                <div class="flex" style="justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+                    <h2>Mensagens</h2>
+                    <div class="controls">
+                        <button id="logoutBtn" class="btn btn-ghost">Sair</button>
+                        <span>Total: <strong id="msgTotal">0</strong></span>
+                        <label>Page <input id="msgPage" type="number" min="1" value="1" style="width:88px"></label>
+                        <label>Size <input id="msgPageSize" type="number" min="1" max="100" value="10" style="width:88px"></label>
+                        <button id="msgReload" class="btn btn-primary">Recarregar</button>
+                    </div>
                 </div>
-            </div>
-            <div id="messagesTable"></div>
-        </section>
+                <form id="messageForm" class="form-panel" autocomplete="off">
+                    <input type="hidden" id="messageId">
+                    <div class="form-heading">
+                        <strong id="messageFormTitle">Nova mensagem</strong>
+                        <span id="messageFormSubtitle" class="muted">Preencha os campos para cadastrar uma mensagem manualmente.</span>
+                    </div>
+                    <div class="form-grid">
+                        <input id="messageName" type="text" placeholder="Nome" required>
+                        <input id="messageEmail" type="email" placeholder="Email" required>
+                        <input id="messageSubject" type="text" placeholder="Assunto" required>
+                        <textarea id="messageBody" placeholder="Mensagem" required></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="messageSubmitBtn" class="btn btn-primary">Criar</button>
+                        <button type="button" id="messageCancel" class="btn btn-ghost">Cancelar</button>
+                        <span id="messageFormStatus" class="form-status"></span>
+                    </div>
+                </form>
+                <div id="messageTableStatus" class="form-status"></div>
+                <div id="messagesTable"></div>
+            </section>
 
-        <section class="card">
-            <div class="flex" style="justify-content: space-between;">
-                <h2>Orçamentos</h2>
-                <div class="controls">
-                    <span>Total: <strong id="bdgTotal">0</strong></span>
-                    <label>Page <input id="bdgPage" type="number" min="1" value="1" style="width:88px"></label>
-                    <label>Size <input id="bdgPageSize" type="number" min="1" max="100" value="10" style="width:88px"></label>
-                    <button id="bdgReload" class="btn btn-primary">Recarregar</button>
+            <section class="card">
+                <div class="flex" style="justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+                    <h2>Orçamentos</h2>
+                    <div class="controls">
+                        <span>Total: <strong id="bdgTotal">0</strong></span>
+                        <label>Page <input id="bdgPage" type="number" min="1" value="1" style="width:88px"></label>
+                        <label>Size <input id="bdgPageSize" type="number" min="1" max="100" value="10" style="width:88px"></label>
+                        <button id="bdgReload" class="btn btn-primary">Recarregar</button>
+                    </div>
                 </div>
-            </div>
-            <div id="budgetsTable"></div>
-        </section>
+                <form id="budgetForm" class="form-panel" autocomplete="off">
+                    <input type="hidden" id="budgetId">
+                    <div class="form-heading">
+                        <strong id="budgetFormTitle">Novo orçamento</strong>
+                        <span id="budgetFormSubtitle" class="muted">Cadastre orçamentos manualmente ou edite itens existentes.</span>
+                    </div>
+                    <div class="form-grid">
+                        <input id="budgetName" type="text" placeholder="Nome" required>
+                        <input id="budgetEmail" type="email" placeholder="Email" required>
+                        <input id="budgetPhone" type="text" placeholder="Telefone" required>
+                        <input id="budgetService" type="text" placeholder="Serviço" required>
+                        <input id="budgetCompany" type="text" placeholder="Empresa (opcional)">
+                        <input id="budgetCity" type="text" placeholder="Cidade/UF" required>
+                        <textarea id="budgetDetails" placeholder="Detalhes" required></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="budgetSubmitBtn" class="btn btn-primary">Criar</button>
+                        <button type="button" id="budgetCancel" class="btn btn-ghost">Cancelar</button>
+                        <span id="budgetFormStatus" class="form-status"></span>
+                    </div>
+                </form>
+                <div id="budgetTableStatus" class="form-status"></div>
+                <div id="budgetsTable"></div>
+            </section>
         </section>
     </main>
     <script>
