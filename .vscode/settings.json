@@ -1,0 +1,12 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "database.sqlite3",
+            "group": "starke",
+            "database": "${workspaceFolder:API-STAKE_ST}/database.sqlite3"
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}
