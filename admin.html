@@ -213,6 +213,87 @@
             return apiRequest(`${endpoint}?page=${page}&page_size=${pageSize}`);
         }
 
+        async function fetchAll(endpoint) {
+            const allItems = [];
+            let page = 1;
+            const pageSize = 100;
+            let hasMore = true;
+
+            while (hasMore) {
+                try {
+                    const data = await fetchPaged(endpoint, page, pageSize);
+                    const items = data.items || [];
+                    allItems.push(...items);
+                    
+                    const total = data.total || 0;
+                    hasMore = allItems.length < total;
+                    page++;
+                } catch (error) {
+                    console.error(`Erro ao buscar dados de ${endpoint}:`, error);
+                    throw error;
+                }
+            }
+
+            return allItems;
+        }
+
+        async function downloadDatabase() {
+            const downloadBtn = document.getElementById('downloadDbBtn');
+            if (!downloadBtn) return;
+
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = '⏳ Baixando...';
+
+            try {
+                // Buscar todos os dados
+                const [messages, budgets] = await Promise.all([
+                    fetchAll('/messages'),
+                    fetchAll('/budgets')
+                ]);
+
+                // Criar objeto com os dados
+                const database = {
+                    exported_at: new Date().toISOString(),
+                    messages: messages,
+                    budgets: budgets,
+                    totals: {
+                        messages: messages.length,
+                        budgets: budgets.length
+                    }
+                };
+
+                // Converter para JSON
+                const jsonString = JSON.stringify(database, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                // Criar link de download
+                const a = document.createElement('a');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                a.href = url;
+                a.download = `starke-st-database-${timestamp}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                // Limpar URL
+                URL.revokeObjectURL(url);
+
+                // Feedback visual temporário
+                downloadBtn.textContent = '✅ Download concluído!';
+                setTimeout(() => {
+                    downloadBtn.textContent = '⬇️ Download DB';
+                }, 2000);
+
+            } catch (error) {
+                console.error('Erro ao fazer download:', error);
+                alert('Erro ao fazer download do banco de dados: ' + (error.message || 'Erro desconhecido'));
+                downloadBtn.textContent = '⬇️ Download DB';
+            } finally {
+                downloadBtn.disabled = false;
+            }
+        }
+
         function renderTable(containerId, items, columns) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -497,6 +578,11 @@
             document.getElementById('bdgReload').addEventListener('click', loadBudgets);
             document.getElementById('messagesTable').addEventListener('click', handleMessageAction);
             document.getElementById('budgetsTable').addEventListener('click', handleBudgetAction);
+            
+            const downloadBtn = document.getElementById('downloadDbBtn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', downloadDatabase);
+            }
 
             document.getElementById('loginForm').addEventListener('submit', async (event) => {
                 event.preventDefault();
@@ -508,6 +594,8 @@
                     await doLogin(email, password);
                     document.getElementById('loginView').style.display = 'none';
                     document.getElementById('appView').style.display = 'block';
+                    const downloadBtn = document.getElementById('downloadDbBtn');
+                    if (downloadBtn) downloadBtn.style.display = 'block';
                     resetMessageForm();
                     resetBudgetForm();
                     await Promise.all([loadMessages(), loadBudgets()]);
@@ -529,6 +617,8 @@
                 localStorage.removeItem('starke_admin_token');
                 document.getElementById('appView').style.display = 'none';
                 document.getElementById('loginView').style.display = 'block';
+                const downloadBtn = document.getElementById('downloadDbBtn');
+                if (downloadBtn) downloadBtn.style.display = 'none';
                 document.getElementById('messagesTable').innerHTML = '';
                 document.getElementById('budgetsTable').innerHTML = '';
                 document.getElementById('msgTotal').textContent = '0';
@@ -550,13 +640,16 @@
             bindControls();
             resetMessageForm();
             resetBudgetForm();
+            const downloadBtn = document.getElementById('downloadDbBtn');
             if (AUTH_TOKEN) {
                 document.getElementById('loginView').style.display = 'none';
                 document.getElementById('appView').style.display = 'block';
+                if (downloadBtn) downloadBtn.style.display = 'block';
                 await Promise.allSettled([loadMessages(), loadBudgets()]);
             } else {
                 document.getElementById('loginView').style.display = 'block';
                 document.getElementById('appView').style.display = 'none';
+                if (downloadBtn) downloadBtn.style.display = 'none';
             }
         });
     </script>
@@ -567,7 +660,10 @@
             <div class="brand">
                 <h1>Admin - Starke ST</h1>
             </div>
-            <button id="themeToggle" class="theme-toggle">Alternar tema</button>
+            <div class="flex" style="gap: 8px;">
+                <button id="downloadDbBtn" class="theme-toggle" style="display: none;">⬇️ Download DB</button>
+                <button id="themeToggle" class="theme-toggle">Alternar tema</button>
+            </div>
         </div>
     </header>
     <main>
